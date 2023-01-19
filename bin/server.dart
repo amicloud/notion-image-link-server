@@ -1,27 +1,41 @@
 import 'dart:io';
+import 'dart:math';
+
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import 'limiter.dart';
+
 // Configure routes.
-final _router = Router()..get('/frame', _renderFrameHandler);
+final _router = Router()
+  ..get('/frame', _renderFrameHandler);
+
+Random random = Random();
+final Map<String, int> requests = List.generate(1000000, (index) => {"${random.nextInt(255)}.${random.nextInt(100)}.${random.nextInt(100)}.${random.nextInt(100)}": random.nextInt(1000)}).reduce((value, element) => value..addAll(element));
+//final Map<String, int> requests = {};
+Limiter limiter = Limiter(requests: requests);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET',
-  'Access-Control-Allow-Headers':
-      'Origin, X-Requested-With, Content-Type, Accept',
+  'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
 };
 
 Response _renderFrameHandler(Request request) {
+  final ip = (request.context["shelf.io.connection_info"] as HttpConnectionInfo).remoteAddress.address;
+  final port = (request.context["shelf.io.connection_info"] as HttpConnectionInfo).remotePort;
+  if(!limiter.handleIt("$ip:$port")) {
+    return Response(429, body: 'Too many requests!\n');
+  }
   // final dest = request.params['dest'];
   final dest = request.url.queryParameters['dest'];
   // final img = request.params['img'];
   final img = request.url.queryParameters['img'];
   final h = request.url.queryParameters['h'];
-  final hMin = request.url.queryParameters['hMin'];
+  final hMin= request.url.queryParameters['hMin'];
   final w = request.url.queryParameters['w'];
-  final wMin = request.url.queryParameters['wMin'];
+  final wMin= request.url.queryParameters['wMin'];
   String frame = '''
   <html>
   <head>
@@ -35,8 +49,9 @@ Response _renderFrameHandler(Request request) {
   </body>
   </html>''';
 
-  return Response.ok(frame,
-      headers: {'Content-Type': 'text/html', ...corsHeaders});
+  return Response.ok(frame, headers: {
+    'Content-Type': 'text/html',
+    ...corsHeaders});
 }
 
 void main(List<String> args) async {
