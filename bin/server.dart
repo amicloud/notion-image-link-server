@@ -35,11 +35,10 @@ Response _renderFrameHandler(Request request) {
   </body>
   </html>''';
 
-  return Response.ok(frame,
-      headers: {
+  return Response.ok(frame).change(headers: {
     'Content-Type': 'text/html',
-        'x-frame-options': '',
-        ...corsHeaders});
+    'x-frame-options': '',
+    ...corsHeaders});
 }
 
 void main(List<String> args) async {
